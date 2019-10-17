@@ -1,0 +1,19 @@
+replicaCount: 1
+
+image:
+  repository: jupyter/minimal-notebook
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8888
+
+volumes:
+  output_data_mount_path: /bespin/output-data
+  job_data_mount_path: /bespin/job-data
+  system_data_mount_path: /bespin/system-data
+
+ingress: {}
+
+job_id: {}

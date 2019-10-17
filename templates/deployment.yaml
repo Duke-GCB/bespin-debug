@@ -1,0 +1,66 @@
+{{- $output_data_volume_name := printf "%s-%s" .Chart.Name "output-data" -}}
+{{- $job_data_volume_name := printf "%s-%s" .Chart.Name "job-data" -}}
+{{- $system_data_volume_name := printf "%s-%s" .Chart.Name "system-data" -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: {{ .Release.Name }}
+  name: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      annotations:
+        alpha.image.policy.openshift.io/resolve-names: '*'
+      labels:
+        app: {{ .Release.Name }}
+        deploymentconfig: {{ .Release.Name }}
+        bespin-job: "true"
+        bespin-debug: "true"
+        bespin-job-id: "{{ .Values.job_id }}"
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - command:
+        - start-notebook.sh
+        - --no-browser
+        - --ip=0.0.0.0
+        - --NotebookApp.token={{ .Values.notebook_token }}
+        - --NotebookApp.password={{  .Values.notebook_password }}
+        env:
+        - name: "JUPYTER_ENABLE_LAB"
+          value: "true"
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        name: jupyter-notebook
+        ports:
+        - containerPort: 8888
+          protocol: TCP
+        volumeMounts:
+        - name: {{ $output_data_volume_name }}
+          mountPath: {{ .Values.volumes.output_data_mount_path }}
+          readOnly: true
+        - name: {{ $job_data_volume_name }}
+          mountPath: {{ .Values.volumes.job_data_mount_path }}
+          readOnly: true
+        - name: {{ $system_data_volume_name }}
+          mountPath: {{ .Values.volumes.system_data_mount_path }}
+          readOnly: true
+        workingDir: /bespin
+      securityContext:
+        supplementalGroups:
+        - 100
+      volumes:
+        - name: {{ $output_data_volume_name }}
+          persistentVolumeClaim:
+            claimName: {{ required "volumes.output_data_pvc_name is required" .Values.volumes.output_data_pvc_name }}
+        - name: {{ $job_data_volume_name }}
+          persistentVolumeClaim:
+            claimName: {{ required "volumes.job_data_pvc_name is required" .Values.volumes.job_data_pvc_name }}
+        - name: {{ $system_data_volume_name }}
+          persistentVolumeClaim:
+            claimName: {{ required "volumes.system_data_pvc_name is required" .Values.volumes.system_data_pvc_name }}
